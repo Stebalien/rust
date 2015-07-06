@@ -218,6 +218,39 @@ impl Hash for OsString {
     }
 }
 
+/// Created with the method `.lines()`.
+#[unstable(feature = "os_str", reason = "recently added")]
+#[derive(Clone)]
+pub struct Lines<'a>(&'a [u8]);
+
+#[unstable(feature = "os_str", reason = "recently added")]
+impl<'a> Iterator for Lines<'a> {
+    type Item = &'a OsStr;
+
+    fn next(&mut self) -> Option<&'a OsStr> {
+        if self.0.is_empty() {
+            return None;
+        }
+        let end = self.0.position_elem(b'\n').unwrap_or(self.0.len());
+        let result = &self.0[..end];
+        self.0 = self.0[end..];
+        Some(OsStr { inner: unsafe { mem::transmute(result) } })
+    }
+}
+
+#[stable(feature = "rust1", since = "1.0.0")]
+impl<'a> DoubleEndedIterator for Lines<'a> {
+    fn next_back(&mut self) -> Option<&'a OsStr> {
+        if self.0.is_empty() {
+            return None;
+        }
+        let start = self.0.rposition_elem(b'\n').unwrap_or(0);
+        let result = &self.0[..end];
+        self.0 = self.0[end..];
+        Some(OsStr { inner: unsafe { mem::transmute(result) } })
+    }
+}
+
 impl OsStr {
     /// Coerces into an `OsStr` slice.
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -278,15 +311,48 @@ impl OsStr {
     }
 
     /// Returns true if the `other` is a prefix of the `OsStr`.
-    #[unstable(feature = "os_str_compare", reason = "recently added")]
+    #[unstable(feature = "os_str", reason = "recently added")]
     pub fn starts_with<S: AsRef<OsStr>>(&self, other: S) -> bool {
         self.bytes().starts_with(other.as_ref().bytes())
     }
 
     /// Returns true if the `other` is a suffix of the `OsStr`.
-    #[unstable(feature = "os_str_compare", reason = "recently added")]
+    #[unstable(feature = "os_str", reason = "recently added")]
     pub fn ends_with<S: AsRef<OsStr>>(&self, other: S) -> bool {
         self.bytes().ends_with(other.as_ref().bytes())
+    }
+
+    /// Returns the size (in bytes) of the OsStr.
+    #[unstable(feature = "os_str", reason = "recently added")]
+    pub fn len(&self) -> usize {
+        self.bytes().len()
+    }
+
+    /// Returns true of the OsStr is empty.
+    #[unstable(feature = "os_str", reason = "recently added")]
+    pub fn is_empty(&self) -> bool {
+        self.bytes().is_empty()
+    }
+
+    /// Returns true if the OsStr contains `needle`.
+    #[unstable(feature = "os_str", reason = "recently added")]
+    pub fn contains<S: AsRef<OsStr>>(&mut self, needle: S) -> bool {
+        // Assumes a prefix-free encoding.
+        let needle = needle.as_ref();
+        self.bytes().windows(needle.len()).any(|w| w == needle)
+    }
+
+
+
+    /// Returns an iterator over the lines of the `OsStr`.
+    #[unstable(feature = "os_str", reason = "recently added")]
+    pub fn lines(&mut self) -> Lines {
+        let mut bytes = self.bytes();
+        // Skip trailing '\n'
+        if bytes.ends_with(b'\n') {
+            bytes = bytes[..bytes.len()-1];
+        }
+        Lines(bytes)
     }
 
     /// Gets the underlying byte representation.
