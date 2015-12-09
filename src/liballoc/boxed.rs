@@ -64,7 +64,7 @@ use core::hash::{self, Hash};
 use core::marker::{self, Unsize};
 use core::mem;
 use core::ops::{CoerceUnsized, Deref, DerefMut};
-use core::ops::{Placer, Boxed, Place, InPlace, BoxPlace};
+use core::ops::{Placer, Boxer, Place};
 use core::ptr::{self, Unique};
 use core::raw::TraitObject;
 use core::convert::From;
@@ -134,68 +134,51 @@ pub struct IntermediateBox<T: ?Sized> {
     marker: marker::PhantomData<*mut T>,
 }
 
+impl<T: ?Sized> IntermediateBox<T> {
+    // May eventually make this unsized but it's private so we don't care about stability.
+    fn new() -> Self where T: Sized {
+        let size = mem::size_of::<T>();
+        let align = mem::align_of::<T>();
+
+        let p = if size == 0 {
+            heap::EMPTY as *mut u8
+        } else {
+            let p = unsafe { heap::allocate(size, align) };
+            if p.is_null() {
+                panic!("Box make_place allocation failure.");
+            }
+            p
+        };
+
+        IntermediateBox {
+            ptr: p,
+            size: size,
+            align: align,
+            marker: marker::PhantomData,
+        }
+    }
+}
+
 #[unstable(feature = "placement_in",
            reason = "placement box design is still being worked out.",
            issue = "27779")]
-impl<T> Place<T> for IntermediateBox<T> {
+unsafe impl<T> Place<T> for IntermediateBox<T> {
+    type Owner = Box<T>;
     fn pointer(&mut self) -> *mut T {
         self.ptr as *mut T
     }
-}
-
-unsafe fn finalize<T>(b: IntermediateBox<T>) -> Box<T> {
-    let p = b.ptr as *mut T;
-    mem::forget(b);
-    mem::transmute(p)
-}
-
-fn make_place<T>() -> IntermediateBox<T> {
-    let size = mem::size_of::<T>();
-    let align = mem::align_of::<T>();
-
-    let p = if size == 0 {
-        heap::EMPTY as *mut u8
-    } else {
-        let p = unsafe { heap::allocate(size, align) };
-        if p.is_null() {
-            panic!("Box make_place allocation failure.");
-        }
-        p
-    };
-
-    IntermediateBox {
-        ptr: p,
-        size: size,
-        align: align,
-        marker: marker::PhantomData,
-    }
-}
-
-#[unstable(feature = "placement_in",
-           reason = "placement box design is still being worked out.",
-           issue = "27779")]
-impl<T> BoxPlace<T> for IntermediateBox<T> {
-    fn make_place() -> IntermediateBox<T> {
-        make_place()
-    }
-}
-
-#[unstable(feature = "placement_in",
-           reason = "placement box design is still being worked out.",
-           issue = "27779")]
-impl<T> InPlace<T> for IntermediateBox<T> {
-    type Owner = Box<T>;
     unsafe fn finalize(self) -> Box<T> {
-        finalize(self)
+        let p = self.ptr as *mut T;
+        mem::forget(self);
+        mem::transmute(p)
     }
 }
 
 #[unstable(feature = "placement_new_protocol", issue = "27779")]
-impl<T> Boxed for Box<T> {
-    type Data = T;
+impl<T> Boxer<T> for Box<T> {
     type Place = IntermediateBox<T>;
-    unsafe fn finalize(b: IntermediateBox<T>) -> Box<T> {
-        finalize(b)
+    fn make_place() -> Self::Place {
+        IntermediateBox::new()
     }
 }
 
@@ -206,7 +189,7 @@ impl<T> Placer<T> for ExchangeHeapSingleton {
     type Place = IntermediateBox<T>;
 
     fn make_place(self) -> IntermediateBox<T> {
-        make_place()
+        IntermediateBox::new()
     }
 }
 

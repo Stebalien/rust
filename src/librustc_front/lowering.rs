@@ -942,17 +942,17 @@ pub fn lower_expr(lctx: &LoweringContext, e: &Expr) -> P<hir::Expr> {
         node: match e.node {
             // Issue #22181:
             // Eventually a desugaring for `box EXPR`
-            // (similar to the desugaring above for `in PLACE BLOCK`)
+            // (similar to the desugaring above for `PLACE <- BLOCK`)
             // should go here, desugaring
             //
             // to:
             //
-            // let mut place = BoxPlace::make_place();
+            // let mut place = Boxer::make_place();
             // let raw_place = Place::pointer(&mut place);
             // let value = $value;
             // unsafe {
             //     ::std::ptr::write(raw_place, value);
-            //     Boxed::finalize(place)
+            //     Place::finalize(place)
             // }
             //
             // But for now there are type-inference issues doing that.
@@ -960,7 +960,7 @@ pub fn lower_expr(lctx: &LoweringContext, e: &Expr) -> P<hir::Expr> {
                 hir::ExprBox(lower_expr(lctx, e))
             }
 
-            // Desugar ExprBox: `in (PLACE) EXPR`
+            // Desugar ExprBox: `PLACE <- EXPR`
             ExprInPlace(ref placer, ref value_expr) => {
                 // to:
                 //
@@ -969,7 +969,7 @@ pub fn lower_expr(lctx: &LoweringContext, e: &Expr) -> P<hir::Expr> {
                 // let raw_place = Place::pointer(&mut place);
                 // push_unsafe!({
                 //     std::intrinsics::move_val_init(raw_place, pop_unsafe!( EXPR ));
-                //     InPlace::finalize(place)
+                //     Place::finalize(place)
                 // })
                 return cache_ids(lctx, e.id, |lctx| {
                     let placer_expr = lower_expr(lctx, placer);
@@ -982,7 +982,7 @@ pub fn lower_expr(lctx: &LoweringContext, e: &Expr) -> P<hir::Expr> {
                     let make_place = ["ops", "Placer", "make_place"];
                     let place_pointer = ["ops", "Place", "pointer"];
                     let move_val_init = ["intrinsics", "move_val_init"];
-                    let inplace_finalize = ["ops", "InPlace", "finalize"];
+                    let place_finalize = ["ops", "Place", "finalize"];
 
                     let make_call = |lctx: &LoweringContext, p, args| {
                         let path = core_path(lctx, e.span, p);
@@ -1041,7 +1041,7 @@ pub fn lower_expr(lctx: &LoweringContext, e: &Expr) -> P<hir::Expr> {
 
                     // push_unsafe!({
                     //     std::intrinsics::move_val_init(raw_place, pop_unsafe!( EXPR ));
-                    //     InPlace::finalize(place)
+                    //     Place::finalize(place)
                     // })
                     let expr = {
                         let ptr = expr_ident(lctx, e.span, p_ptr_ident, None);
@@ -1052,7 +1052,7 @@ pub fn lower_expr(lctx: &LoweringContext, e: &Expr) -> P<hir::Expr> {
                         let call_move_val_init = respan(e.span, call_move_val_init);
 
                         let place = expr_ident(lctx, e.span, place_ident, None);
-                        let call = make_call(lctx, &inplace_finalize, vec![place]);
+                        let call = make_call(lctx, &place_finalize, vec![place]);
                         signal_block_expr(lctx,
                                           vec![call_move_val_init],
                                           call,
