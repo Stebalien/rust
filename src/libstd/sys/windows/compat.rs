@@ -28,7 +28,7 @@ use sync::atomic::{AtomicUsize, Ordering};
 use sys::c;
 
 pub fn lookup(module: &str, symbol: &str) -> Option<usize> {
-    let mut module: Vec<u16> = module.encode_utf16().collect();
+    let mut module: Vec<u16> = module.encode_utf16().into();
     module.push(0);
     let symbol = CString::new(symbol).unwrap();
     unsafe {

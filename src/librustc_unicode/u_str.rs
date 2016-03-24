@@ -157,7 +157,6 @@ impl<I> Iterator for Utf16Encoder<I> where I: Iterator<Item=char> {
 
         self.chars.next().map(|ch| {
             let n = CharExt::encode_utf16(ch);
-            let n = n.as_slice();
             if n.len() == 2 {
                 self.extra = n[1];
             }

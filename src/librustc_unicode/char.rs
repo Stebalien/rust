@@ -37,7 +37,7 @@ use tables::{derived_property, property, general_category, conversions};
 #[stable(feature = "rust1", since = "1.0.0")]
 pub use core::char::{MAX, from_u32, from_u32_unchecked, from_digit};
 #[stable(feature = "rust1", since = "1.0.0")]
-pub use core::char::{EscapeUnicode, EscapeDefault, EncodeUtf8, EncodeUtf16};
+pub use core::char::{EscapeUnicode, EscapeDefault, Utf8Char, Utf16Char};
 
 // unstable reexports
 #[unstable(feature = "unicode", issue = "27783")]
@@ -410,49 +410,41 @@ impl char {
         C::len_utf16(self)
     }
 
-    /// Returns an interator over the bytes of this character as UTF-8.
-    ///
-    /// The returned iterator also has an `as_slice()` method to view the
-    /// encoded bytes as a byte slice.
+    /// Returns a container that derefs to an `str` representing the UTF-8
+    /// encoding of a `char` value.
     ///
     /// # Examples
     ///
     /// ```
     /// #![feature(unicode)]
     ///
-    /// let iterator = 'ß'.encode_utf8();
-    /// assert_eq!(iterator.as_slice(), [0xc3, 0x9f]);
-    ///
-    /// for (i, byte) in iterator.enumerate() {
-    ///     println!("byte {}: {:x}", i, byte);
-    /// }
+    /// let s = 'ß'.encode_utf8();
+    /// assert_eq!(&*s, "ß");
     /// ```
     #[unstable(feature = "unicode", issue = "27784")]
     #[inline]
-    pub fn encode_utf8(self) -> EncodeUtf8 {
+    pub fn encode_utf8(self) -> Utf8Char {
         C::encode_utf8(self)
     }
 
-    /// Returns an interator over the `u16` entries of this character as UTF-16.
-    ///
-    /// The returned iterator also has an `as_slice()` method to view the
-    /// encoded form as a slice.
+    /// Returns a container that derefs to a slice of `u16` entries representing
+    /// the UTF-16 encoding of a `char` value.
     ///
     /// # Examples
     ///
     /// ```
     /// #![feature(unicode)]
     ///
-    /// let iterator = '𝕊'.encode_utf16();
-    /// assert_eq!(iterator.as_slice(), [0xd835, 0xdd4a]);
+    /// let vals = '𝕊'.encode_utf16();
+    /// assert_eq!(vals.as_slice(), [0xd835, 0xdd4a]);
     ///
-    /// for (i, val) in iterator.enumerate() {
+    /// for (i, &val) in vals.iter().enumerate() {
     ///     println!("entry {}: {:x}", i, val);
     /// }
     /// ```
     #[unstable(feature = "unicode", issue = "27784")]
     #[inline]
-    pub fn encode_utf16(self) -> EncodeUtf16 {
+    pub fn encode_utf16(self) -> Utf16Char {
         C::encode_utf16(self)
     }
 

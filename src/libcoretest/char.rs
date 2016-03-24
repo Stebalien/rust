@@ -174,25 +174,22 @@ fn test_escape_unicode() {
 
 #[test]
 fn test_encode_utf8() {
-    fn check(input: char, expect: &[u8]) {
-        assert_eq!(input.encode_utf8().as_slice(), expect);
-        for (a, b) in input.encode_utf8().zip(expect) {
-            assert_eq!(a, *b);
-        }
+    fn check(input: char, expect: &str) {
+        assert_eq!(&*input.encode_utf8(), expect);
     }
 
-    check('x', &[0x78]);
-    check('\u{e9}', &[0xc3, 0xa9]);
-    check('\u{a66e}', &[0xea, 0x99, 0xae]);
-    check('\u{1f4a9}', &[0xf0, 0x9f, 0x92, 0xa9]);
+    check('x', "x");
+    check('\u{e9}', "\u{e9}");
+    check('\u{a66e}', "\u{a66e}");
+    check('\u{1f4a9}', "\u{1f4a9}");
 }
 
 #[test]
 fn test_encode_utf16() {
     fn check(input: char, expect: &[u16]) {
-        assert_eq!(input.encode_utf16().as_slice(), expect);
-        for (a, b) in input.encode_utf16().zip(expect) {
-            assert_eq!(a, *b);
+        assert_eq!(&*input.encode_utf16(), expect);
+        for (&a, &b) in input.encode_utf16().iter().zip(expect) {
+            assert_eq!(a, b);
         }
     }
 

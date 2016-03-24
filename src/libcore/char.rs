@@ -15,6 +15,8 @@
 #![allow(non_snake_case)]
 #![stable(feature = "core_char", since = "1.2.0")]
 
+use str;
+use ops::Deref;
 use iter::Iterator;
 use mem::transmute;
 use option::Option::{None, Some};
@@ -270,9 +272,9 @@ pub trait CharExt {
     #[stable(feature = "core", since = "1.6.0")]
     fn len_utf16(self) -> usize;
     #[unstable(feature = "unicode", issue = "27784")]
-    fn encode_utf8(self) -> EncodeUtf8;
+    fn encode_utf8(self) -> Utf8Char;
     #[unstable(feature = "unicode", issue = "27784")]
-    fn encode_utf16(self) -> EncodeUtf16;
+    fn encode_utf16(self) -> Utf16Char;
 }
 
 #[stable(feature = "core", since = "1.6.0")]
@@ -336,47 +338,47 @@ impl CharExt for char {
     }
 
     #[inline]
-    fn encode_utf8(self) -> EncodeUtf8 {
+    fn encode_utf8(self) -> Utf8Char {
         let code = self as u32;
         let mut buf = [0; 4];
-        let pos = if code < MAX_ONE_B {
-            buf[3] = code as u8;
-            3
+        let len = if code < MAX_ONE_B {
+            buf[0] = code as u8;
+            1
         } else if code < MAX_TWO_B {
-            buf[2] = (code >> 6 & 0x1F) as u8 | TAG_TWO_B;
-            buf[3] = (code & 0x3F) as u8 | TAG_CONT;
+            buf[0] = (code >> 6 & 0x1F) as u8 | TAG_TWO_B;
+            buf[1] = (code & 0x3F) as u8 | TAG_CONT;
             2
         } else if code < MAX_THREE_B {
-            buf[1] = (code >> 12 & 0x0F) as u8 | TAG_THREE_B;
-            buf[2] = (code >>  6 & 0x3F) as u8 | TAG_CONT;
-            buf[3] = (code & 0x3F) as u8 | TAG_CONT;
-            1
+            buf[0] = (code >> 12 & 0x0F) as u8 | TAG_THREE_B;
+            buf[1] = (code >>  6 & 0x3F) as u8 | TAG_CONT;
+            buf[2] = (code & 0x3F) as u8 | TAG_CONT;
+            3
         } else {
             buf[0] = (code >> 18 & 0x07) as u8 | TAG_FOUR_B;
             buf[1] = (code >> 12 & 0x3F) as u8 | TAG_CONT;
             buf[2] = (code >>  6 & 0x3F) as u8 | TAG_CONT;
             buf[3] = (code & 0x3F) as u8 | TAG_CONT;
-            0
+            4
         };
-        EncodeUtf8 { buf: buf, pos: pos }
+        Utf8Char { buf: buf, len: len }
     }
 
     #[inline]
-    fn encode_utf16(self) -> EncodeUtf16 {
+    fn encode_utf16(self) -> Utf16Char {
         let mut buf = [0; 2];
         let mut code = self as u32;
-        let pos = if (code & 0xFFFF) == code {
+        let len = if (code & 0xFFFF) == code {
             // The BMP falls through (assuming non-surrogate, as it should)
-            buf[1] = code as u16;
+            buf[0] = code as u16;
             1
         } else {
             // Supplementary planes break into surrogates.
             code -= 0x1_0000;
             buf[0] = 0xD800 | ((code >> 10) as u16);
             buf[1] = 0xDC00 | ((code as u16) & 0x3FF);
-            0
+            2
         };
-        EncodeUtf16 { buf: buf, pos: pos }
+        Utf16Char { buf: buf, len: len }
     }
 }
 
@@ -556,79 +558,42 @@ impl Iterator for EscapeDefault {
     }
 }
 
-/// An iterator over `u8` entries represending the UTF-8 encoding of a `char`
-/// value.
+/// A container that derefs to an `str` representing the UTF-8 encoding of a
+/// `char` value.
 ///
 /// Constructed via the `.encode_utf8()` method on `char`.
 #[unstable(feature = "unicode", issue = "27784")]
-#[derive(Debug)]
-pub struct EncodeUtf8 {
+#[derive(Debug, Copy, Clone)]
+pub struct Utf8Char {
     buf: [u8; 4],
-    pos: usize,
-}
-
-impl EncodeUtf8 {
-    /// Returns the remaining bytes of this iterator as a slice.
-    #[unstable(feature = "unicode", issue = "27784")]
-    pub fn as_slice(&self) -> &[u8] {
-        &self.buf[self.pos..]
-    }
+    len: usize,
 }
 
 #[unstable(feature = "unicode", issue = "27784")]
-impl Iterator for EncodeUtf8 {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<u8> {
-        if self.pos == self.buf.len() {
-            None
-        } else {
-            let ret = Some(self.buf[self.pos]);
-            self.pos += 1;
-            ret
+impl Deref for Utf8Char {
+    type Target = str;
+    fn deref(&self) -> &str {
+        unsafe {
+            str::from_utf8_unchecked(&self.buf[..self.len])
         }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.as_slice().iter().size_hint()
     }
 }
 
-/// An iterator over `u16` entries represending the UTF-16 encoding of a `char`
-/// value.
+/// A container that derefs to a slice of `u16` entries representing the UTF-16
+/// encoding of a `char` value.
 ///
 /// Constructed via the `.encode_utf16()` method on `char`.
 #[unstable(feature = "unicode", issue = "27784")]
-#[derive(Debug)]
-pub struct EncodeUtf16 {
+#[derive(Debug, Copy, Clone)]
+pub struct Utf16Char {
     buf: [u16; 2],
-    pos: usize,
+    len: usize,
 }
-
-impl EncodeUtf16 {
-    /// Returns the remaining bytes of this iterator as a slice.
-    #[unstable(feature = "unicode", issue = "27784")]
-    pub fn as_slice(&self) -> &[u16] {
-        &self.buf[self.pos..]
-    }
-}
-
 
 #[unstable(feature = "unicode", issue = "27784")]
-impl Iterator for EncodeUtf16 {
-    type Item = u16;
-
-    fn next(&mut self) -> Option<u16> {
-        if self.pos == self.buf.len() {
-            None
-        } else {
-            let ret = Some(self.buf[self.pos]);
-            self.pos += 1;
-            ret
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.as_slice().iter().size_hint()
+impl Deref for Utf16Char {
+    type Target = [u16];
+    fn deref(&self) -> &[u16] {
+        &self.buf[..self.len]
     }
 }

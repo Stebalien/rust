@@ -76,7 +76,7 @@ fn write(out: &Output, data: &[u8]) -> io::Result<usize> {
         Err(ref e) if e.valid_up_to() == 0 => return Err(invalid_encoding()),
         Err(e) => str::from_utf8(&data[..e.valid_up_to()]).unwrap(),
     };
-    let utf16 = utf8.encode_utf16().collect::<Vec<u16>>();
+    let utf16 = utf8.encode_utf16();
     let mut written = 0;
     cvt(unsafe {
         c::WriteConsoleW(handle,

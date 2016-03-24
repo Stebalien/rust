@@ -969,7 +969,7 @@ impl String {
     pub fn push(&mut self, ch: char) {
         match ch.len_utf8() {
             1 => self.vec.push(ch as u8),
-            _ => self.vec.extend_from_slice(ch.encode_utf8().as_slice()),
+            _ => self.push_str(&ch.encode_utf8()),
         }
     }
 
@@ -1121,7 +1121,6 @@ impl String {
         assert!(idx <= len);
         assert!(self.is_char_boundary(idx));
         let bits = ch.encode_utf8();
-        let bits = bits.as_slice();
         let amt = bits.len();
         self.vec.reserve(amt);
 
