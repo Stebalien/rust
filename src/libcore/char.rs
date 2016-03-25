@@ -573,9 +573,23 @@ pub struct Utf8Char {
 impl Deref for Utf8Char {
     type Target = str;
     fn deref(&self) -> &str {
+        self.as_ref()
+    }
+}
+
+#[unstable(feature = "unicode", issue = "27784")]
+impl AsRef<str> for Utf8Char {
+    fn as_ref(&self) -> &str {
         unsafe {
-            str::from_utf8_unchecked(&self.buf[..self.len])
+            str::from_utf8_unchecked(self.as_ref())
         }
+    }
+}
+
+#[unstable(feature = "unicode", issue = "27784")]
+impl AsRef<[u8]> for Utf8Char {
+    fn as_ref(&self) -> &[u8] {
+        &self.buf[..self.len]
     }
 }
 
@@ -594,6 +608,13 @@ pub struct Utf16Char {
 impl Deref for Utf16Char {
     type Target = [u16];
     fn deref(&self) -> &[u16] {
+        self.as_ref()
+    }
+}
+
+#[unstable(feature = "unicode", issue = "27784")]
+impl AsRef<[u16]> for Utf16Char {
+    fn as_ref(&self) -> &[u16] {
         &self.buf[..self.len]
     }
 }
