@@ -75,6 +75,12 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
         c::ERROR_PATH_NOT_FOUND => return ErrorKind::NotFound,
         c::ERROR_NO_DATA => return ErrorKind::BrokenPipe,
         c::ERROR_OPERATION_ABORTED => return ErrorKind::TimedOut,
+        c::ERROR_NOT_SUPPORTED
+            | c::ERROR_ATOMIC_LOCKS_NOT_SUPPORTED
+            | c::ERROR_EAS_NOT_SUPPORTED
+            | c::ERROR_DEVICE_FEATURE_NOT_SUPPORTED
+            | c::ERROR_FILE_LEVEL_TRIM_NOT_SUPPORTED
+            => return ErrorKind::NotSupported,
         _ => {}
     }
 

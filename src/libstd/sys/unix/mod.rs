@@ -118,6 +118,12 @@ pub fn decode_error_kind(errno: i32) -> ErrorKind {
         libc::EINVAL => ErrorKind::InvalidInput,
         libc::ETIMEDOUT => ErrorKind::TimedOut,
         libc::EEXIST => ErrorKind::AlreadyExists,
+        // TODO: Add ENOTSUP when rust-lang/libc#448 is merged.
+        libc::EOPNOTSUPP
+            | libc::EAFNOSUPPORT
+            | libc::EPFNOSUPPORT
+            | libc::EPROTONOSUPPORT
+            | libc::ESOCKTNOSUPPORT => ErrorKind::NotSupported,
 
         // These two constants can have the same value on some systems,
         // but different values on others, so we can't use a match

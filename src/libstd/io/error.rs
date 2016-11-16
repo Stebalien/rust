@@ -168,6 +168,10 @@ pub enum ErrorKind {
     #[stable(feature = "read_exact", since = "1.6.0")]
     UnexpectedEof,
 
+    /// The requested operation is not supported on the current platform.
+    #[unstable(feature = "not_supported")]
+    NotSupported,
+
     /// A marker variant that tells the compiler that users of this enum cannot
     /// match it exhaustively.
     #[unstable(feature = "io_error_internals",
@@ -199,6 +203,7 @@ impl ErrorKind {
             ErrorKind::Interrupted => "operation interrupted",
             ErrorKind::Other => "other os error",
             ErrorKind::UnexpectedEof => "unexpected end of file",
+            ErrorKind::NotSupported => "operation not supported",
             ErrorKind::__Nonexhaustive => unreachable!()
         }
     }
