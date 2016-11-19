@@ -751,18 +751,22 @@ pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     Ok(PathBuf::from(OsString::from_vec(buf)))
 }
 
+fn set_perm_fd(file: &File, perm: FilePermissions) -> io::Result<()> {
+    cvt_r(|| unsafe { libc::fchmod(file.as_raw_fd(), perm.mode) })?;
+    Ok(())
+}
+
 pub fn copy(from: &Path, to: &Path) -> io::Result<u64> {
     use fs::{File, set_permissions};
-    if !from.is_file() {
-        return Err(Error::new(ErrorKind::InvalidInput,
-                              "the source path is not an existing regular file"))
-    }
 
     let mut reader = File::open(from)?;
+    let metadata = reader.metadata()?;
+    if !metadata.is_file() {
+        return Err(Error::new(ErrorKind::InvalidInput,
+                              "the source path is not a regular file"))
+    }
     let mut writer = File::create(to)?;
-    let perm = reader.metadata()?.permissions();
-
     let ret = io::copy(&mut reader, &mut writer)?;
-    set_permissions(to, perm)?;
+    set_perm_fd(to, metadata.permissions())?;
     Ok(ret)
 }
